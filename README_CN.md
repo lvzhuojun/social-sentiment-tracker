@@ -294,11 +294,11 @@ jupyter lab
 
 | 指标 | 基线（TF-IDF + LR） | BERT（bert-base-uncased） |
 |------|---------------------|--------------------------|
-| 准确率 (Accuracy) | — | — |
-| 精确率 (Precision, weighted) | — | — |
-| 召回率 (Recall, weighted) | — | — |
-| F1 分数 (weighted) | — | — |
-| ROC-AUC | — | — |
+| 准确率 (Accuracy) | 0.8841 | — |
+| 精确率 (Precision, weighted) | 0.9014 | — |
+| 召回率 (Recall, weighted) | 0.8841 | — |
+| F1 分数 (weighted) | 0.8824 | — |
+| ROC-AUC | 0.9717 | — |
 
 > 评估使用 `src/evaluate.evaluate_model()` 完成。
 > 混淆矩阵和 ROC 曲线图自动保存至 `reports/figures/`。

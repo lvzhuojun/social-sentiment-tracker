@@ -11,6 +11,34 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.3.0] — 2026-04-08
+
+### Added
+- `reports/figures/` — all visualisation PNGs committed: confusion matrix, word clouds (Negative / Positive / Neutral), sentiment distribution, text-length histogram, top-keywords chart, model-comparison bar chart, ROC curve
+- `notebooks/01_eda_executed.ipynb` — EDA notebook fully executed (no errors); output excluded from git via `.gitignore` (`*_executed.ipynb`)
+- `notebooks/02_baseline_model_executed.ipynb` — baseline notebook fully executed; output excluded from git
+
+### Changed
+- `.gitignore` — added `*_executed.ipynb` (cell outputs contain local absolute paths) and `run_training.py` (temporary one-off script)
+- `notebooks/02_baseline_model.ipynb` — fixed confusion matrix to infer class labels dynamically; fixed ROC curve cell to skip gracefully for multi-class data and print OvR AUC instead
+- `README.md` / `README_CN.md` — corrected Baseline ROC-AUC from 0.9722 → **0.9717** (actual run result)
+
+---
+
+## [1.2.0] — 2026-04-08
+
+### Added
+- `data/processed/train.csv`, `val.csv`, `test.csv` — persisted split files written by `split_data()`
+- `split_data()` gained optional `save_dir` parameter; splits are now auto-saved to `data/processed/` on every call
+- 50 unique templates per sentiment class in `generate_mock_data()` (up from 10); ensures ~340+ unique rows after deduplication
+
+### Changed
+- `generate_mock_data()` — added prefix / suffix variation logic for greater textual diversity
+- `README.md` / `README_CN.md` — Model Performance table filled with real Baseline test-set results:
+  Accuracy 0.8841 · Precision 0.9014 · Recall 0.8841 · F1 0.8824 · ROC-AUC 0.9717
+
+---
+
 ## [Unreleased]
 
 > Items planned for future releases. Move entries to a versioned section upon release.

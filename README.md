@@ -294,11 +294,11 @@ Results on the held-out test set (stratified 20 %, `RANDOM_SEED=42`).
 
 | Metric | Baseline (TF-IDF + LR) | BERT (bert-base-uncased) |
 |--------|------------------------|--------------------------|
-| Accuracy | — | — |
-| Precision (weighted) | — | — |
-| Recall (weighted) | — | — |
-| F1 (weighted) | — | — |
-| ROC-AUC | — | — |
+| Accuracy | 0.8841 | — |
+| Precision (weighted) | 0.9014 | — |
+| Recall (weighted) | 0.8841 | — |
+| F1 (weighted) | 0.8824 | — |
+| ROC-AUC | 0.9717 | — |
 
 > Evaluation is performed by `src/evaluate.evaluate_model()`.
 > Confusion matrices and ROC curves are saved automatically to `reports/figures/`.
