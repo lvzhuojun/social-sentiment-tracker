@@ -179,13 +179,14 @@ class TestSplitData:
         assert abs(len(test) / len(mock_df) - 0.2) < 0.05
 
     def test_no_overlap(self, mock_df, tmp_path):
+        # Use the 'id' column (not .index) because split_data calls reset_index
         train, val, test = split_data(mock_df, save_dir=tmp_path)
-        train_idx = set(train.index)
-        val_idx = set(val.index)
-        test_idx = set(test.index)
-        assert train_idx.isdisjoint(val_idx)
-        assert train_idx.isdisjoint(test_idx)
-        assert val_idx.isdisjoint(test_idx)
+        train_ids = set(train["id"])
+        val_ids = set(val["id"])
+        test_ids = set(test["id"])
+        assert train_ids.isdisjoint(val_ids)
+        assert train_ids.isdisjoint(test_ids)
+        assert val_ids.isdisjoint(test_ids)
 
     def test_saves_csv_files(self, mock_df, tmp_path):
         split_data(mock_df, save_dir=tmp_path)

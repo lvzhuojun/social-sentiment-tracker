@@ -75,8 +75,17 @@ def evaluate_model(
 
     if y_scores is not None:
         try:
-            # Works for binary and multi-class (OvR)
-            roc_auc = roc_auc_score(y_true, y_scores, multi_class="ovr")
+            n_classes = len(np.unique(y_true))
+            if n_classes == 2:
+                # Binary: roc_auc_score expects 1-D positive-class probabilities
+                scores_1d = (
+                    y_scores[:, 1] if (hasattr(y_scores, "ndim") and y_scores.ndim == 2)
+                    else y_scores
+                )
+                roc_auc = roc_auc_score(y_true, scores_1d)
+            else:
+                # Multi-class: pass full probability matrix with OvR strategy
+                roc_auc = roc_auc_score(y_true, y_scores, multi_class="ovr")
         except ValueError:
             roc_auc = float("nan")
     else:
