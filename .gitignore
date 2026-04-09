@@ -65,3 +65,6 @@ reports/metrics.json
 # ── One-off / temporary scripts (not part of the public API) ─────────────────
 run_training.py
 take_screenshots.py
+
+# ── Local Claude Code config (never upload to GitHub) ────────────────────────
+CLAUDE.md
