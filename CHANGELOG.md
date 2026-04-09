@@ -11,6 +11,20 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.8.0] — 2026-04-08
+
+### Added
+- `tests/` — pytest unit-test suite covering all `src/` modules:
+  - `test_config.py` — path constants, `set_seed()`, `get_logger()`
+  - `test_data_loader.py` — `clean_text`, `generate_mock_data`, `preprocess_dataframe`, `split_data`
+  - `test_preprocess.py` — `tokenize`, `remove_stopwords`, `lemmatize`, `add_text_features`
+  - `test_baseline_model.py` — `build_pipeline`, `train_baseline`, `predict`, `load_baseline_model`
+  - `test_evaluate.py` — `evaluate_model`, `plot_confusion_matrix`, `compare_models`
+  - `test_visualize.py` — all plot functions; gauge color assertions for all three sentiments
+- `pytest>=7.4.0` and `pytest-cov>=4.1.0` added to `requirements.txt` and `environment.yml`
+
+---
+
 ## [1.7.0] — 2026-04-08
 
 ### Added
