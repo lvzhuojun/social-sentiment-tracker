@@ -1,6 +1,7 @@
 # 社交情感追踪器 · Social Sentiment Tracker
 
 ![CI](https://github.com/lvzhuojun/social-sentiment-tracker/actions/workflows/ci.yml/badge.svg)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://social-sentiment-tracker.streamlit.app)
 ![Python](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
 ![HuggingFace](https://img.shields.io/badge/HuggingFace-Transformers-FFD21E?logo=huggingface&logoColor=black)
@@ -162,6 +163,18 @@ conda activate sentiment-tracker
 streamlit run app/streamlit_app.py
 # 在浏览器中访问 http://localhost:8501
 ```
+
+### Streamlit Cloud（零安装公开演示）
+
+1. Fork 本仓库
+2. 打开 [share.streamlit.io](https://share.streamlit.io) → **New app**
+3. 选择你的 Fork，分支 `main`，文件 `app/streamlit_app.py`
+4. 将 **Python version** 设为 `3.10`，**Requirements file** 设为 `requirements-cloud.txt`
+5. 点击 **Deploy** — 基线模型会在首次启动时自动训练（约 10 秒）
+
+> 免费套餐内存限制，BERT 推理功能在云端不可用，其他页面完全正常。
+
+---
 
 ### Docker（一键启动演示）
 

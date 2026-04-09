@@ -11,6 +11,20 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [2.1.0] — 2026-04-09
+
+### Added
+- `.streamlit/config.toml` — theme, headless server, and usage-stats settings
+- `requirements-cloud.txt` — lightweight deps for Streamlit Community Cloud
+  (excludes torch/transformers; BERT features gracefully disabled on free tier)
+- Streamlit Cloud deploy badge and step-by-step instructions in both READMEs
+
+### Changed
+- `app/streamlit_app.py` `get_baseline_pipeline()` — auto-trains on mock data
+  (~10 s) when no saved model is found; enables zero-config Streamlit Cloud demo
+
+---
+
 ## [2.0.1] — 2026-04-08
 
 ### Fixed

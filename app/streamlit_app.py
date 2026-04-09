@@ -61,12 +61,21 @@ def get_data() -> pd.DataFrame:
 
 @st.cache_resource(show_spinner="Loading baseline model…")
 def get_baseline_pipeline():
-    """Load the persisted TF-IDF + LR pipeline."""
+    """Load or auto-train the TF-IDF + LR pipeline.
+
+    On first run (e.g. Streamlit Cloud), the model is trained automatically
+    on mock data if no saved checkpoint is found (~10 s on CPU).
+    """
     try:
         from src.baseline_model import load_baseline_model
         return load_baseline_model()
     except FileNotFoundError:
-        return None
+        with st.spinner("First run — training baseline model on mock data (~10 s)…"):
+            from src.baseline_model import train_baseline
+            from src.data_loader import load_data, split_data
+            df = load_data()
+            train_df, val_df, _ = split_data(df)
+            return train_baseline(train_df, val_df)
 
 
 @st.cache_resource(show_spinner="Loading BERT model…")

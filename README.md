@@ -1,6 +1,7 @@
 # Social Sentiment Tracker
 
 ![CI](https://github.com/lvzhuojun/social-sentiment-tracker/actions/workflows/ci.yml/badge.svg)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://social-sentiment-tracker.streamlit.app)
 ![Python](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.x-EE4C2C?logo=pytorch&logoColor=white)
 ![HuggingFace](https://img.shields.io/badge/HuggingFace-Transformers-FFD21E?logo=huggingface&logoColor=black)
@@ -162,6 +163,18 @@ conda activate sentiment-tracker
 streamlit run app/streamlit_app.py
 # Opens at http://localhost:8501
 ```
+
+### Streamlit Cloud (Zero-Install Public Demo)
+
+1. Fork this repository
+2. Go to [share.streamlit.io](https://share.streamlit.io) → **New app**
+3. Select your fork, branch `main`, file `app/streamlit_app.py`
+4. Set **Python version** to `3.10` and **Requirements file** to `requirements-cloud.txt`
+5. Click **Deploy** — the baseline model auto-trains on first start (~10 s)
+
+> BERT inference is disabled on the free tier (memory limit). All other pages work fully.
+
+---
 
 ### Docker (One-Command Demo)
 
