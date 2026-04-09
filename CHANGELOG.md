@@ -11,6 +11,17 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.5.0] — 2026-04-08
+
+### Changed
+- Repository renamed from `Social-Sentiment-Tracker-` → `social-sentiment-tracker`
+  (GitHub convention: lowercase kebab-case, no trailing hyphen)
+- Updated all internal references: `README.md`, `README_CN.md`, `CONTRIBUTING.md`
+  clone URLs and project structure tree
+- Updated git remote URL to match new repo name
+
+---
+
 ## [1.4.0] — 2026-04-08
 
 ### Added

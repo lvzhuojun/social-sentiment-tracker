@@ -145,8 +145,8 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/lvzhuojun/Social-Sentiment-Tracker-.git
-cd Social-Sentiment-Tracker-
+git clone https://github.com/lvzhuojun/social-sentiment-tracker.git
+cd social-sentiment-tracker
 
 # 2. Create and activate the conda environment (Python 3.10 + all dependencies)
 conda env create -f environment.yml
@@ -198,7 +198,7 @@ All training hyperparameters are controlled in `config.py`:
 ## Project Structure
 
 ```
-Social-Sentiment-Tracker-/
+social-sentiment-tracker/
 │
 ├── app/
 │   └── streamlit_app.py        # Four-page web demo (Home · EDA · Live Demo · Comparison)

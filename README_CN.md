@@ -145,8 +145,8 @@
 
 ```bash
 # 1. 克隆仓库
-git clone https://github.com/lvzhuojun/Social-Sentiment-Tracker-.git
-cd Social-Sentiment-Tracker-
+git clone https://github.com/lvzhuojun/social-sentiment-tracker.git
+cd social-sentiment-tracker
 
 # 2. 创建并激活 conda 环境（Python 3.10 + 全部依赖）
 conda env create -f environment.yml
@@ -198,7 +198,7 @@ conda env create -f environment.yml
 ## 项目结构
 
 ```
-Social-Sentiment-Tracker-/
+social-sentiment-tracker/
 │
 ├── app/
 │   └── streamlit_app.py        # 四页 Web 演示（首页 · 数据分析 · 实时预测 · 模型对比）

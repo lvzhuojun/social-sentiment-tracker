@@ -387,7 +387,7 @@ Copy this template into every PR description:
 
 ## Getting Help
 
-- **Bug reports / feature requests:** Open a [GitHub Issue](https://github.com/lvzhuojun/Social-Sentiment-Tracker-/issues)
+- **Bug reports / feature requests:** Open a [GitHub Issue](https://github.com/lvzhuojun/social-sentiment-tracker/issues)
 - **Documentation discrepancies** between `README.md` and `README_CN.md`: open an issue with label `documentation`
 - **BERT training issues:** label the issue `model:bert`
 - **Baseline model issues:** label the issue `model:baseline`
