@@ -59,6 +59,9 @@ credentials.json
 htmlcov/
 .pytest_cache/
 
+# ── Generated training metrics (populated at runtime by training scripts) ─────
+reports/metrics.json
+
 # ── One-off / temporary scripts (not part of the public API) ─────────────────
 run_training.py
 take_screenshots.py
