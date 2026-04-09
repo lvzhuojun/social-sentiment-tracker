@@ -11,6 +11,17 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [2.0.0] — 2026-04-08
+
+### Added
+- `Dockerfile` — multi-stage build using `python:3.10-slim`; installs CPU-only torch
+  to keep image lean; exposes port 8501; includes health check
+- `.dockerignore` — excludes git history, cache, large data/model files, and dev scripts
+- Docker quick-start instructions added to `README.md` and `README_CN.md`
+  (build + run + model volume mount)
+
+---
+
 ## [1.9.0] — 2026-04-08
 
 ### Added

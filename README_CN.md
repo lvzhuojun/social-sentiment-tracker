@@ -163,6 +163,27 @@ streamlit run app/streamlit_app.py
 # 在浏览器中访问 http://localhost:8501
 ```
 
+### Docker（一键启动演示）
+
+```bash
+# 构建镜像（首次构建因下载 torch 约需 5 分钟）
+docker build -t social-sentiment-tracker .
+
+# 启动 Streamlit 演示
+docker run -p 8501:8501 social-sentiment-tracker
+# 在浏览器访问 http://localhost:8501
+```
+
+如需在容器内使用已训练好的模型，挂载 `models/` 目录：
+
+```bash
+docker run -p 8501:8501 \
+  -v "$(pwd)/models:/app/models" \
+  social-sentiment-tracker
+```
+
+---
+
 ### GPU 支持（可选）
 
 打开 `environment.yml`，进行以下修改：

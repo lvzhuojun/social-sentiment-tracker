@@ -163,6 +163,27 @@ streamlit run app/streamlit_app.py
 # Opens at http://localhost:8501
 ```
 
+### Docker (One-Command Demo)
+
+```bash
+# Build the image (first build ~5 min due to torch download)
+docker build -t social-sentiment-tracker .
+
+# Run the Streamlit demo
+docker run -p 8501:8501 social-sentiment-tracker
+# Opens at http://localhost:8501
+```
+
+To use a pre-trained model inside the container, mount the `models/` directory:
+
+```bash
+docker run -p 8501:8501 \
+  -v "$(pwd)/models:/app/models" \
+  social-sentiment-tracker
+```
+
+---
+
 ### GPU Support (Optional)
 
 Open `environment.yml` and make the following change:
