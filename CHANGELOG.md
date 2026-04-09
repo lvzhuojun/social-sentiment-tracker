@@ -11,6 +11,22 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [1.9.0] — 2026-04-08
+
+### Added
+- `reports/metrics.json` — training scripts now persist evaluation metrics to this file
+  automatically after each run; Streamlit Model Comparison page loads from it
+
+### Changed
+- `src/baseline_model.py` `train_baseline()` — saves baseline val metrics to
+  `reports/metrics.json` on every training run
+- `src/bert_model.py` `train_bert()` — saves BERT val metrics to `reports/metrics.json`
+  on every training run
+- `app/streamlit_app.py` (Page 4) — loads real metrics from `reports/metrics.json`
+  when available; shows a clear "run training first" message when not yet generated
+
+---
+
 ## [1.8.0] — 2026-04-08
 
 ### Added

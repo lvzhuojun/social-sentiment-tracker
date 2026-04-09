@@ -346,22 +346,21 @@ elif page == "📈 Model Comparison":
         """
     )
 
-    # --- Placeholder / real metrics ---
-    # These would be populated after actual training runs.
-    baseline_results = {
-        "accuracy": 0.0,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
-        "roc_auc": 0.0,
-    }
-    bert_results = {
-        "accuracy": 0.0,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0.0,
-        "roc_auc": 0.0,
-    }
+    # --- Load saved metrics (populated after training runs) ---
+    import json as _json
+
+    _metrics_path = ROOT_DIR / "reports" / "metrics.json"
+    _saved: dict = {}
+    if _metrics_path.exists():
+        try:
+            with open(_metrics_path, encoding="utf-8") as _fh:
+                _saved = _json.load(_fh)
+        except Exception:
+            pass
+
+    _empty = {"accuracy": None, "precision": None, "recall": None, "f1": None, "roc_auc": None}
+    baseline_results = _saved.get("baseline", _empty)
+    bert_results = _saved.get("bert", _empty)
 
     # Check if saved figures exist and display them
     comparison_img = FIGURES_DIR / "model_comparison.png"
@@ -376,12 +375,23 @@ elif page == "📈 Model Comparison":
     metrics = ["accuracy", "precision", "recall", "f1", "roc_auc"]
     comparison_df = pd.DataFrame(
         {
-            "Baseline (TF-IDF + LR)": [baseline_results[m] for m in metrics],
-            "BERT Fine-tuned": [bert_results[m] for m in metrics],
+            "Baseline (TF-IDF + LR)": [baseline_results.get(m) for m in metrics],
+            "BERT Fine-tuned": [bert_results.get(m) for m in metrics],
         },
         index=[m.upper() for m in metrics],
     )
-    st.dataframe(comparison_df.style.format("{:.4f}"), use_container_width=True)
+
+    if _saved:
+        st.dataframe(
+            comparison_df.style.format(lambda v: f"{v:.4f}" if v is not None else "—"),
+            use_container_width=True,
+        )
+    else:
+        st.info(
+            "指标数据尚未生成。请先运行训练脚本：\n"
+            "```bash\npython src/baseline_model.py\npython src/bert_model.py\n```"
+        )
+        st.dataframe(comparison_df.fillna("—"), use_container_width=True)
 
     st.markdown("---")
     st.subheader("Analysis")

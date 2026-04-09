@@ -19,6 +19,7 @@ from config import (
     BERT_MODEL_NAME,
     BERT_MODEL_PATH,
     EPOCHS,
+    FIGURES_DIR,
     LEARNING_RATE,
     MAX_LENGTH,
     RANDOM_SEED,
@@ -311,6 +312,46 @@ def train_bert(
     model.load_state_dict(torch.load(BERT_MODEL_PATH, map_location=device, weights_only=True))
     model.eval()
     logger.info("Training complete. Best val_acc: %.4f", best_val_acc)
+
+    # Persist val metrics to reports/metrics.json for the Streamlit app
+    try:
+        import json
+        from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+
+        all_preds, all_true = [], []
+        with torch.no_grad():
+            for batch in val_loader:
+                ids = batch["input_ids"].to(device)
+                mask = batch["attention_mask"].to(device)
+                lbls = batch["label"].to(device)
+                out = model(ids, mask)
+                preds = out.logits.argmax(dim=-1)
+                all_preds.extend(preds.cpu().numpy().tolist())
+                all_true.extend(lbls.cpu().numpy().tolist())
+
+        import numpy as np
+        yt = np.array(all_true)
+        yp = np.array(all_preds)
+        metrics = {
+            "accuracy": round(float(accuracy_score(yt, yp)), 4),
+            "precision": round(float(precision_score(yt, yp, average="weighted", zero_division=0)), 4),
+            "recall": round(float(recall_score(yt, yp, average="weighted", zero_division=0)), 4),
+            "f1": round(float(f1_score(yt, yp, average="weighted", zero_division=0)), 4),
+            "roc_auc": None,
+        }
+        metrics_path = FIGURES_DIR.parent / "metrics.json"
+        existing: dict = {}
+        if metrics_path.exists():
+            with open(metrics_path, encoding="utf-8") as fh:
+                existing = json.load(fh)
+        existing["bert"] = metrics
+        metrics_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(metrics_path, "w", encoding="utf-8") as fh:
+            json.dump(existing, fh, indent=2)
+        logger.info("BERT metrics saved to %s", metrics_path)
+    except Exception as exc:
+        logger.warning("Could not save BERT metrics JSON: %s", exc)
+
     return model, tokenizer
 
 

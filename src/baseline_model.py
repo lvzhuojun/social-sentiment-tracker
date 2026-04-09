@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Tuple
 
+import json
+
 import joblib
 import numpy as np
 import pandas as pd
@@ -20,6 +22,7 @@ from sklearn.metrics import (
     f1_score,
     precision_score,
     recall_score,
+    roc_auc_score,
 )
 from sklearn.pipeline import Pipeline
 
@@ -27,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from config import (
     BASELINE_MODEL_PATH,
+    FIGURES_DIR,
     LR_C,
     LR_MAX_ITER,
     RANDOM_SEED,
@@ -125,6 +129,33 @@ def train_baseline(
     BASELINE_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(pipeline, BASELINE_MODEL_PATH)
     logger.info("Model saved to %s", BASELINE_MODEL_PATH)
+
+    # Persist validation metrics to reports/metrics.json for the Streamlit app
+    try:
+        y_proba = pipeline.predict_proba(X_val)
+        try:
+            roc_auc = round(float(roc_auc_score(y_val, y_proba, multi_class="ovr")), 4)
+        except ValueError:
+            roc_auc = None
+        metrics = {
+            "accuracy": round(float(acc), 4),
+            "precision": round(float(prec), 4),
+            "recall": round(float(rec), 4),
+            "f1": round(float(f1), 4),
+            "roc_auc": roc_auc,
+        }
+        metrics_path = FIGURES_DIR.parent / "metrics.json"
+        existing: dict = {}
+        if metrics_path.exists():
+            with open(metrics_path, encoding="utf-8") as fh:
+                existing = json.load(fh)
+        existing["baseline"] = metrics
+        metrics_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(metrics_path, "w", encoding="utf-8") as fh:
+            json.dump(existing, fh, indent=2)
+        logger.info("Baseline metrics saved to %s", metrics_path)
+    except Exception as exc:
+        logger.warning("Could not save metrics JSON: %s", exc)
 
     return pipeline
 
