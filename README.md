@@ -9,7 +9,7 @@
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3+-F7931E?logo=scikit-learn&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-22c55e)
 
-> An end-to-end NLP platform that ingests raw social-media text, cleans it, trains two complementary sentiment models — a fast TF-IDF + Logistic Regression baseline and a fine-tuned **BERT** (`bert-base-uncased`) — and serves predictions through an interactive four-page **Streamlit** web demo. Targets the Sentiment140 Twitter dataset with an automatic 500-sample mock-data fallback for offline development.
+> An end-to-end NLP platform that ingests raw social-media text, cleans it, trains two complementary sentiment models — a fast TF-IDF + Logistic Regression baseline and a fine-tuned **BERT** (`bert-base-uncased`) — and serves predictions through an interactive four-page **Streamlit** web demo and a **FastAPI** REST endpoint. Trained on the **TweetEval** benchmark dataset (59,899 real tweets, 3-class sentiment) with an automatic mock-data fallback for offline development.
 
 ![Streamlit Demo](reports/figures/screenshot_home.png)
 
@@ -40,14 +40,14 @@
 
 | # | Feature | Detail |
 |---|---------|--------|
-| 1 | **Dual-Model Pipeline** | TF-IDF + LogReg baseline (CPU, seconds) vs. fine-tuned BERT (GPU/CPU, production-quality) |
-| 2 | **Automatic Data Fallback** | `load_data()` tries Sentiment140 CSV first; auto-generates 500 balanced mock samples if absent |
-| 3 | **Reproducible Experiments** | `set_seed(42)` fixes `random`, `numpy`, and `torch` seeds globally from `config.py` |
-| 4 | **Stratified Splits** | `split_data()` performs stratified train / val / test (default 70 % / 10 % / 20 %) |
-| 5 | **Rich Interactive Charts** | Plotly pie, histogram, trend line, bar chart; Matplotlib word clouds; Seaborn heatmaps |
-| 6 | **Four-Page Web Demo** | Home · Data Analysis · Live Prediction (single + batch + CSV download) · Model Comparison |
-| 7 | **Google-Style Docstrings** | Every public function has `Args`, `Returns`, `Raises`, and `Example` blocks |
-| 8 | **GPU / CPU Portable** | BERT auto-detects CUDA; `cpuonly` conda env included for CPU-only machines |
+| 1 | **Dual-Model Pipeline** | TF-IDF + LogReg baseline (CPU, seconds) vs. fine-tuned BERT (GPU/CPU, ~1.5 hr on RTX 5060) |
+| 2 | **TweetEval Benchmark Data** | 59,899 real tweets, 3-class labels; `download_data.py` fetches from HuggingFace automatically |
+| 3 | **FastAPI REST Endpoint** | `api/serve.py` — `/predict`, `/predict/batch`, `/health`; Pydantic validation; uvicorn-ready |
+| 4 | **SHAP Explainability** | `src/explain.py` — SHAP `LinearExplainer` for baseline; token-level attribution in Streamlit |
+| 5 | **Hyperparameter Tuning** | `scripts/tune_baseline.py` — 3-fold GridSearchCV across TF-IDF and LR params with heatmap |
+| 6 | **Error Analysis Notebook** | `04_error_analysis.ipynb` — high-confidence errors, negation impact, class difficulty, SHAP on errors |
+| 7 | **Reproducible Experiments** | `set_seed(42)` fixes `random`, `numpy`, and `torch` seeds globally from `config.py` |
+| 8 | **Full Engineering Stack** | 121 pytest tests · GitHub Actions CI · Docker · Streamlit Cloud · Google-style docstrings |
 
 ---
 
@@ -122,11 +122,13 @@
 | Layer | Technology | Version |
 |-------|-----------|---------|
 | Language | Python | 3.10 |
-| Data | Sentiment140 (Twitter) / Mock CSV | — |
+| Data | TweetEval (`tweet_eval/sentiment`, HuggingFace) / Mock CSV | 59,899 tweets |
 | ML Baseline | scikit-learn · TF-IDF + LogReg | ≥ 1.3.0 |
-| Deep Learning | PyTorch | ≥ 2.1.0 |
+| Deep Learning | PyTorch (CUDA 12.8) | ≥ 2.1.0 |
 | NLP Transformers | HuggingFace `transformers` (`bert-base-uncased`) | ≥ 4.35.0 |
 | NLP Helpers | NLTK (tokenize · stopwords · lemmatize) | ≥ 3.8.1 |
+| Explainability | SHAP (`LinearExplainer`) | ≥ 0.44.0 |
+| REST API | FastAPI + uvicorn | ≥ 0.110.0 |
 | Interactive Viz | Plotly | ≥ 5.18.0 |
 | Static Viz | Matplotlib · Seaborn | ≥ 3.7.0 / 0.12.0 |
 | Word Cloud | wordcloud | ≥ 1.9.2 |
@@ -154,12 +156,15 @@ cd social-sentiment-tracker
 conda env create -f environment.yml
 conda activate sentiment-tracker
 
-# 3. (Optional) Real dataset
-#    Download Sentiment140 from https://www.kaggle.com/datasets/kazanova/sentiment140
-#    Rename and place as:  data/raw/twitter_training.csv
+# 3. Download the TweetEval dataset (59,899 tweets from HuggingFace)
+python scripts/download_data.py
 #    If absent, 500 balanced mock samples are auto-generated on first run.
 
-# 4. Launch the Streamlit web demo
+# 4. Train models
+python scripts/train_full.py --model baseline  # TF-IDF + LR (~7 s)
+python scripts/train_full.py --model bert      # BERT fine-tuning (~90 min GPU)
+
+# 5. Launch the Streamlit web demo
 streamlit run app/streamlit_app.py
 # Opens at http://localhost:8501
 ```
@@ -246,31 +251,45 @@ social-sentiment-tracker/
 │   ├── baseline_tfidf_lr.pkl   # Serialised sklearn Pipeline (joblib)
 │   └── bert_sentiment.pt       # BERT state-dict checkpoint (best val_acc)
 │
+├── api/
+│   ├── __init__.py
+│   ├── serve.py                # FastAPI: /predict · /predict/batch · /health
+│   └── requirements.txt        # fastapi · uvicorn · pydantic
+│
 ├── notebooks/
 │   ├── 01_eda.ipynb            # EDA: class distribution, text stats, word clouds
 │   ├── 02_baseline_model.ipynb # Train TF-IDF + LR, feature importance, evaluation
-│   └── 03_bert_finetune.ipynb  # Fine-tune BERT, training curves, error analysis
+│   ├── 03_bert_finetune.ipynb  # Fine-tune BERT, training curves
+│   └── 04_error_analysis.ipynb # Error analysis: high-confidence failures, negation, SHAP
 │
 ├── reports/
-│   └── figures/                # Auto-saved PNGs: confusion matrices, ROC, word clouds
+│   └── figures/                # Auto-saved PNGs: confusion matrices, ROC, tuning heatmap
+│
+├── scripts/
+│   ├── download_data.py        # Download TweetEval from HuggingFace
+│   ├── train_full.py           # End-to-end training (--model baseline|bert|both)
+│   └── tune_baseline.py        # GridSearchCV hyperparameter search + heatmap
 │
 ├── src/
 │   ├── __init__.py
-│   ├── data_loader.py          # load_sentiment140 · clean_text · split_data · generate_mock_data
+│   ├── data_loader.py          # load_tweet_eval · clean_text · split_data · generate_mock_data
 │   ├── preprocess.py           # tokenize · remove_stopwords · lemmatize · add_text_features
 │   ├── baseline_model.py       # build_pipeline · train_baseline · predict · load_baseline_model
 │   ├── bert_model.py           # SentimentDataset · SentimentClassifier · train_bert · predict_bert
-│   ├── evaluate.py             # evaluate_model · plot_confusion_matrix · plot_roc_curve · compare_models
-│   └── visualize.py            # plot_sentiment_distribution · plot_wordcloud · plot_top_keywords · …
+│   ├── evaluate.py             # evaluate_model · plot_confusion_matrix · plot_roc_curve (OvR) · compare_models
+│   ├── visualize.py            # plot_sentiment_distribution · plot_wordcloud · plot_top_keywords · …
+│   └── explain.py              # explain_baseline_prediction (SHAP) · shap_to_plotly_bar
 │
 ├── config.py                   # Centralised paths, hyperparameters, set_seed(), get_logger()
 ├── environment.yml             # Conda environment spec (Python 3.10, pytorch channel)
 ├── requirements.txt            # pip-installable dependencies with version bounds
+├── Dockerfile                  # python:3.10-slim image, port 8501, healthcheck
 │
 ├── README.md                   # English documentation (this file)
 ├── README_CN.md                # Chinese documentation (中文文档)
 ├── CHANGELOG.md                # Version history and release notes
-└── CONTRIBUTING.md             # Contribution and documentation maintenance standards
+├── CONTRIBUTING.md             # Contribution and documentation maintenance standards
+└── UPDATE_RULES.md             # Mandatory standards synchronisation checklist
 ```
 
 ---
@@ -282,16 +301,42 @@ social-sentiment-tracker/
 ```bash
 conda activate sentiment-tracker
 
+# ── Download real data first (59,899 TweetEval tweets) ───────────────────
+python scripts/download_data.py
+
 # ── Baseline (TF-IDF + Logistic Regression) ──────────────────────────────
-# Trains in ~10 seconds on CPU.
-# Output: models/baseline_tfidf_lr.pkl
-python src/baseline_model.py
+# Trains in ~7 seconds on CPU.  Output: models/baseline_tfidf_lr.pkl
+python scripts/train_full.py --model baseline
 
 # ── BERT Fine-tuning ──────────────────────────────────────────────────────
-# GPU strongly recommended (≥ 6 GB VRAM).
-# Falls back to CPU automatically — expect ~20–40 min per epoch on CPU.
-# Output: models/bert_sentiment.pt  (saves best val_acc checkpoint)
-python src/bert_model.py
+# GPU strongly recommended (≥ 6 GB VRAM, ~90 min on RTX 5060).
+# Falls back to CPU (~8–12 hr per epoch). Output: models/bert_sentiment.pt
+python scripts/train_full.py --model bert
+
+# ── Both models in sequence ───────────────────────────────────────────────
+python scripts/train_full.py
+
+# ── Hyperparameter grid search (baseline only, ~15 min) ──────────────────
+python scripts/tune_baseline.py
+```
+
+### Start the FastAPI Server
+
+```bash
+conda activate sentiment-tracker
+pip install -r api/requirements.txt
+uvicorn api.serve:app --host 0.0.0.0 --port 8000
+
+# Single prediction
+curl -X POST http://localhost:8000/predict \
+     -H "Content-Type: application/json" \
+     -d '{"text": "I absolutely love this product!"}'
+
+# Health check
+curl http://localhost:8000/health
+
+# Interactive API docs
+open http://localhost:8000/docs
 ```
 
 ### Run the Web Demo
@@ -323,20 +368,33 @@ jupyter lab
 
 ## Model Performance
 
-Results on the held-out test set (stratified 20 %, `RANDOM_SEED=42`).
+Results on the **TweetEval held-out test set** (12,264 samples, `RANDOM_SEED=42`).
+Three-class sentiment: 0 = Negative · 1 = Positive · 2 = Neutral.
 
-| Metric | Baseline (TF-IDF + LR) | BERT (bert-base-uncased) † |
-|--------|------------------------|---------------------------|
-| Accuracy | 0.8841 | 0.4058 |
-| Precision (weighted) | 0.9014 | 0.3190 |
-| Recall (weighted) | 0.8841 | 0.4058 |
-| F1 (weighted) | 0.8824 | 0.2844 |
-| ROC-AUC | 0.9717 | — |
+| Metric | Baseline (TF-IDF + LR) | BERT (bert-base-uncased) |
+|--------|------------------------|--------------------------|
+| Accuracy | **0.5935** | training in progress |
+| Precision (weighted) | **0.6096** | — |
+| Recall (weighted) | **0.5935** | — |
+| F1 (weighted) | **0.5788** | — |
+| ROC-AUC (macro OvR) | **0.7724** | — |
 
-> † BERT results are from a **quick-run demo** only: 1 epoch, CPU-only, 240 training samples (auto-generated mock data).
-> Full fine-tuning on Sentiment140 (~1.6 M tweets) with GPU would be expected to significantly outperform the baseline.
-> Evaluation is performed by `src/evaluate.evaluate_model()`.
-> Confusion matrices are saved automatically to `reports/figures/`.
+> Dataset: `tweet_eval/sentiment` from HuggingFace (45,615 train / 2,000 val / 12,284 test).
+> BERT results will be populated after full fine-tuning completes (3 epochs, GPU, ~90 min).
+> All metrics computed by `src/evaluate.evaluate_model()`; confusion matrices and ROC curves
+> saved to `reports/figures/` with OvR multi-class ROC support.
+
+**Per-class breakdown — Baseline:**
+
+| Class | Precision | Recall | F1 | Support |
+|-------|-----------|--------|----|---------|
+| Negative (0) | 0.68 | 0.35 | 0.46 | 3,968 |
+| Positive (1) | 0.53 | 0.62 | 0.57 | 2,371 |
+| Neutral (2) | 0.59 | 0.75 | 0.66 | 5,925 |
+
+> **Negative class has the lowest recall (0.35)** — the most common error is negative samples
+> predicted as neutral. This is a known limitation of bag-of-words models on negation-heavy text.
+> See `notebooks/04_error_analysis.ipynb` for a detailed failure-mode investigation.
 
 ---
 
@@ -346,7 +404,8 @@ Results on the held-out test set (stratified 20 %, `RANDOM_SEED=42`).
 |----------|-------------|-------------|
 | `01_eda.ipynb` | Data loading, class distribution, text statistics, word clouds, sentiment trend over time | Plotly charts · `reports/figures/wordcloud_*.png` |
 | `02_baseline_model.ipynb` | Train TF-IDF + LR, evaluate on test set, plot LR coefficients, confusion matrix, ROC | `models/baseline_tfidf_lr.pkl` · ROC curve PNG |
-| `03_bert_finetune.ipynb` | Fine-tune BERT, per-epoch training curves, compare with baseline, error analysis | `models/bert_sentiment.pt` · model comparison chart |
+| `03_bert_finetune.ipynb` | Fine-tune BERT, per-epoch training curves, compare with baseline | `models/bert_sentiment.pt` · model comparison chart |
+| `04_error_analysis.ipynb` | High-confidence error analysis, negation impact, class difficulty, SHAP on error cases | `reports/figures/error_*.png` · insight summary |
 
 ---
 
@@ -407,9 +466,17 @@ Results on the held-out test set (stratified 20 %, `RANDOM_SEED=42`).
 |------------------|-------------|
 | `SentimentDataset` | PyTorch `Dataset`; tokenises text with HuggingFace tokenizer; returns `input_ids`, `attention_mask`, `label` tensors |
 | `SentimentClassifier(nn.Module)` | BERT encoder → Dropout(0.3) → `Linear(hidden_size, num_labels)` classification head |
-| `train_bert(train_df, val_df, config=None)` | Fine-tune with AdamW + linear warmup; per-epoch logging; saves best-val-acc checkpoint |
-| `predict_bert(model, tokenizer, texts, device)` | Batch inference; returns `(labels, confidences)` numpy arrays |
-| `load_bert_model(path=None, num_labels=2)` | Load state-dict + tokenizer from disk; returns `(model, tokenizer)` ready for inference |
+| `train_bert(train_df, val_df, config=None)` | Fine-tune with AdamW + linear warmup; saves best-val-acc checkpoint + companion `.json` config |
+| `predict_bert(model, tokenizer, texts, device)` | Batch inference; returns `(labels, probs_matrix)` where `probs_matrix` is shape `(n, n_classes)` |
+| `load_bert_model(path=None, num_labels=3)` | Auto-reads `num_labels` from companion `.json`; returns `(model, tokenizer)` ready for inference |
+
+### `api/serve.py`
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | `GET` | Liveness check — reports which models are loaded |
+| `/predict` | `POST` | Single-text prediction: `{"text": "...", "model": "baseline"}` → `{sentiment, label, confidence, latency_ms}` |
+| `/predict/batch` | `POST` | Batch prediction: `{"texts": [...], "model": "baseline"}` — up to 128 texts per request |
 
 ---
 
@@ -468,14 +535,17 @@ Results on the held-out test set (stratified 20 %, `RANDOM_SEED=42`).
 
 ## Future Roadmap
 
+- [x] **Model explainability** — SHAP `LinearExplainer` for baseline (`src/explain.py`)
+- [x] **Docker deployment** — `python:3.10-slim` image, port 8501, healthcheck
+- [x] **CI/CD pipeline** — GitHub Actions: flake8 lint + 121 pytest tests
+- [x] **FastAPI REST endpoint** — `/predict`, `/predict/batch`, `/health` (`api/serve.py`)
+- [x] **Hyperparameter tuning** — 3-fold GridSearchCV with heatmap (`scripts/tune_baseline.py`)
+- [x] **Error analysis** — high-confidence errors, negation patterns, per-class difficulty (`04_error_analysis.ipynb`)
+- [ ] **Quantised inference** — INT8 BERT via ONNX for 3–4× CPU speedup
 - [ ] **Multi-class sentiment** — 5-class fine-grained labels (very negative → very positive)
 - [ ] **Live data ingestion** — Twitter / Reddit API streaming pipeline
 - [ ] **Aspect-Based Sentiment Analysis (ABSA)** — entity-level opinion mining
-- [x] **Model explainability** — SHAP token-level attribution for baseline model (`src/explain.py`)
-- [ ] **Quantised inference** — INT8 BERT for CPU speedup (3–4× faster)
-- [ ] **Docker deployment** — one-command containerised demo
-- [ ] **CI/CD pipeline** — GitHub Actions: lint, unit tests, build verification
-- [ ] **Unit tests** — `pytest` coverage for all `src/` modules
+- [ ] **MLflow experiment tracking** — log params, metrics, and model artefacts per run
 
 ---
 

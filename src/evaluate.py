@@ -26,6 +26,7 @@ from sklearn.metrics import (
     roc_auc_score,
     roc_curve,
 )
+from sklearn.preprocessing import label_binarize
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -230,37 +231,79 @@ def plot_roc_curve(
     y_scores: np.ndarray,
     model_name: str = "Model",
 ) -> Path:
-    """Plot and save the ROC curve with AUC annotation.
+    """Plot and save ROC curves with AUC annotations.
 
-    For binary classification ``y_scores`` should be the probability of the
-    positive class (shape ``(n,)``).
+    Handles both binary and multi-class classification automatically:
+    * **Binary** — plots a single curve using the positive-class column.
+    * **Multi-class** — uses One-vs-Rest (OvR) strategy: one curve per class
+      plus micro-average and macro-average curves.
 
     Args:
-        y_true: Ground-truth binary labels (0 or 1).
-        y_scores: Positive-class probability scores.
-        model_name: Used in the plot title and filename.
+        y_true: Ground-truth integer labels.
+        y_scores: Probability matrix of shape ``(n, n_classes)`` for multi-class,
+                  or 1-D positive-class probabilities for binary.
+        model_name: Used in the plot title and output filename.
 
     Returns:
         Path to the saved PNG file.
 
     Example:
-        >>> path = plot_roc_curve(y_test, probs[:, 1], "Baseline")
+        >>> path = plot_roc_curve(y_test, probs, "BERT Fine-tuned")
     """
     y_true = np.asarray(y_true)
     y_scores = np.asarray(y_scores)
 
-    fpr, tpr, _ = roc_curve(y_true, y_scores)
-    roc_auc = auc(fpr, tpr)
+    classes = sorted(np.unique(y_true).tolist())
+    n_classes = len(classes)
 
-    fig, ax = plt.subplots(figsize=(6, 5))
-    ax.plot(fpr, tpr, lw=2, label=f"{model_name} (AUC = {roc_auc:.4f})")
+    CLASS_LABELS = {0: "Negative", 1: "Positive", 2: "Neutral"}
+    CLASS_COLORS = ["#e74c3c", "#2ecc71", "#3498db", "#9b59b6", "#f39c12"]
+
+    fig, ax = plt.subplots(figsize=(7, 6))
+
+    if n_classes == 2:
+        # Binary classification
+        scores_1d = y_scores[:, 1] if (y_scores.ndim == 2) else y_scores
+        fpr, tpr, _ = roc_curve(y_true, scores_1d)
+        roc_auc = auc(fpr, tpr)
+        ax.plot(fpr, tpr, lw=2, label=f"{model_name} (AUC = {roc_auc:.4f})")
+    else:
+        # Multi-class OvR — one curve per class
+        y_bin = label_binarize(y_true, classes=classes)  # (n, n_classes)
+
+        fpr_dict, tpr_dict, auc_dict = {}, {}, {}
+        for i, cls in enumerate(classes):
+            col = y_scores[:, i] if y_scores.ndim == 2 else y_scores
+            try:
+                fpr_dict[cls], tpr_dict[cls], _ = roc_curve(y_bin[:, i], col)
+                auc_dict[cls] = auc(fpr_dict[cls], tpr_dict[cls])
+                label = CLASS_LABELS.get(cls, str(cls))
+                ax.plot(fpr_dict[cls], tpr_dict[cls], lw=1.5,
+                        color=CLASS_COLORS[i % len(CLASS_COLORS)],
+                        label=f"{label} (AUC = {auc_dict[cls]:.4f})")
+            except Exception:
+                continue
+
+        # Micro-average
+        try:
+            all_fpr = np.unique(np.concatenate(list(fpr_dict.values())))
+            mean_tpr = np.zeros_like(all_fpr)
+            for cls in classes:
+                mean_tpr += np.interp(all_fpr, fpr_dict[cls], tpr_dict[cls])
+            mean_tpr /= n_classes
+            macro_auc = auc(all_fpr, mean_tpr)
+            ax.plot(all_fpr, mean_tpr, lw=2, linestyle="--", color="navy",
+                    label=f"Macro-avg (AUC = {macro_auc:.4f})")
+        except Exception:
+            pass
+
     ax.plot([0, 1], [0, 1], "k--", lw=1, label="Random")
     ax.set_xlim([0.0, 1.0])
     ax.set_ylim([0.0, 1.05])
     ax.set_xlabel("False Positive Rate")
-    ax.set_ylabel("True Positive Rate")
+    ax.set_ylabel("True Positive Rate (Recall)")
     ax.set_title(f"ROC Curve — {model_name}")
-    ax.legend(loc="lower right")
+    ax.legend(loc="lower right", fontsize=9)
     plt.tight_layout()
 
     safe_name = model_name.lower().replace(" ", "_")

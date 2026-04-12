@@ -11,6 +11,57 @@ Versioning: [Semantic Versioning](https://semver.org/)
 
 ---
 
+## [2.3.0] — 2026-04-12
+
+### Added
+- `api/serve.py` — FastAPI REST inference endpoint with three routes:
+  - `GET /health` — liveness check; reports which models are loaded
+  - `POST /predict` — single-text prediction with Pydantic validation; returns `sentiment`,
+    `label`, `confidence`, `model_used`, `latency_ms`
+  - `POST /predict/batch` — batch prediction (up to 128 texts); returns per-item results and
+    total latency
+  - Auto-loads baseline at startup; loads BERT opportunistically if checkpoint exists
+- `api/requirements.txt` — `fastapi>=0.110.0`, `uvicorn[standard]>=0.29.0`, `pydantic>=2.0.0`
+- `scripts/tune_baseline.py` — 3-fold stratified GridSearchCV over TF-IDF × LR parameters
+  - Grid: `max_features` ∈ {10k, 30k, 50k}, `ngram_range` ∈ {(1,1),(1,2),(1,3)}, `C` ∈ {0.1,1,10}
+  - Saves JSON results to `reports/tuning_results.json` and heatmap PNG to `reports/figures/`
+- `notebooks/04_error_analysis.ipynb` — comprehensive failure-mode investigation:
+  - Per-class accuracy bar chart
+  - Confidence distribution: correct vs incorrect predictions
+  - High-confidence errors (dangerous failures, confidence > 0.8)
+  - Error confusion matrix (errors only)
+  - Text-length vs error-rate analysis
+  - Negation pattern detection and accuracy impact
+  - SHAP token analysis on high-confidence errors
+  - Both-model agreement / disagreement breakdown (when BERT available)
+- `UPDATE_RULES.md` — mandatory standards synchronisation checklist (committed; not gitignored)
+- `INTERVIEW_GUIDE.md` — local interview preparation handbook (gitignored, local only)
+
+### Fixed
+- `src/bert_model.py` `predict_bert()` — now returns full softmax probability matrix `(n, n_classes)`
+  instead of only the max-confidence scalar; eliminates the proxy-matrix hack in `train_full.py`
+- `src/bert_model.py` `train_bert()` — saves companion `<checkpoint>.json` alongside `.pt` file,
+  recording `num_labels` and `model_name` for reliable reloading
+- `src/bert_model.py` `load_bert_model()` — auto-reads `num_labels` from companion `.json`;
+  default changed from `2` → `3` to match TweetEval three-class task
+- `src/evaluate.py` `plot_roc_curve()` — complete rewrite to support multi-class OvR ROC:
+  one curve per class (Negative / Positive / Neutral) plus macro-average; binary classification
+  still handled as a special case
+- `scripts/train_full.py` `run_bert()` — removed proxy probability matrix; uses full `probs_matrix`
+  from updated `predict_bert()` directly
+- `app/streamlit_app.py` — updated BERT prediction path to extract per-sample confidence via
+  `probs.max(axis=1)`; fixed Chinese-only error message to English
+
+### Changed
+- `README.md` / `README_CN.md` — updated Model Performance table with **real baseline results**
+  on TweetEval test set (Acc 0.5935, F1 0.5788, AUC 0.7724); replaced mock-data placeholder figures
+- `README.md` — added FastAPI usage section, `scripts/tune_baseline.py` usage,
+  updated Future Roadmap to mark Docker / CI / tests / FastAPI / tuning / error-analysis as done
+- `.gitignore` — added `reports/tuning_results.json`, `reports/error_analysis_test.csv`,
+  `models/*.json`, `INTERVIEW_GUIDE.md`
+
+---
+
 ## [2.2.0] — 2026-04-08
 
 ### Added

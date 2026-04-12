@@ -302,10 +302,14 @@ def train_bert(
             epoch, cfg["epochs"], avg_train_loss, avg_val_loss, val_acc,
         )
 
-        # Save best checkpoint
+        # Save best checkpoint + model config for reliable reloading
         if val_acc > best_val_acc:
             best_val_acc = val_acc
             torch.save(model.state_dict(), BERT_MODEL_PATH)
+            import json as _json
+            _cfg_path = BERT_MODEL_PATH.with_suffix(".json")
+            with open(_cfg_path, "w", encoding="utf-8") as _fh:
+                _json.dump({"num_labels": num_labels, "model_name": cfg["model_name"]}, _fh)
             logger.info("  ↑ New best val_acc %.4f — model saved.", best_val_acc)
 
     # Reload best weights
@@ -370,7 +374,7 @@ def predict_bert(
     batch_size: int = BATCH_SIZE,
     max_length: int = MAX_LENGTH,
 ) -> Tuple[np.ndarray, np.ndarray]:
-    """Batch-predict sentiment labels and confidence scores with a BERT model.
+    """Batch-predict sentiment labels and full softmax probabilities with a BERT model.
 
     Args:
         model: Fine-tuned :class:`SentimentClassifier` in eval mode.
@@ -381,14 +385,17 @@ def predict_bert(
         max_length: Maximum sequence length (default from config).
 
     Returns:
-        Tuple ``(labels, confidences)`` where:
-        * ``labels`` — 1-D int array of predicted class indices.
-        * ``confidences`` — 1-D float array of max softmax probability.
+        Tuple ``(labels, probs)`` where:
+        * ``labels`` — 1-D int array of predicted class indices, shape ``(n,)``.
+        * ``probs``  — 2-D float array of softmax probabilities, shape ``(n, num_classes)``.
+          Use ``probs.max(axis=1)`` to obtain per-sample confidence scores.
 
     Example:
-        >>> labels, confs = predict_bert(model, tokenizer, ["Great product!"])
+        >>> labels, probs = predict_bert(model, tokenizer, ["Great product!"])
         >>> labels
         array([1])
+        >>> probs.shape
+        (1, 3)
     """
     _check_torch()
     if device is None:
@@ -398,7 +405,7 @@ def predict_bert(
     model.eval()
 
     all_labels: List[int] = []
-    all_confs: List[float] = []
+    all_probs: List[List[float]] = []
 
     for i in range(0, len(texts), batch_size):
         batch_texts = texts[i: i + batch_size]
@@ -418,9 +425,9 @@ def predict_bert(
             preds = probs.argmax(dim=-1)
 
         all_labels.extend(preds.cpu().numpy().tolist())
-        all_confs.extend(probs.max(dim=-1).values.cpu().numpy().tolist())
+        all_probs.extend(probs.cpu().numpy().tolist())
 
-    return np.array(all_labels, dtype=int), np.array(all_confs, dtype=float)
+    return np.array(all_labels, dtype=int), np.array(all_probs, dtype=float)
 
 
 # ---------------------------------------------------------------------------
@@ -429,16 +436,23 @@ def predict_bert(
 
 def load_bert_model(
     path: Path | None = None,
-    num_labels: int = 2,
+    num_labels: int = 3,
     model_name: str = BERT_MODEL_NAME,
 ) -> Tuple:
     """Load a saved BERT model and its tokenizer.
 
+    Automatically reads ``num_labels`` and ``model_name`` from the companion
+    ``<checkpoint>.json`` config file saved during training (when available),
+    so callers do not need to hard-code architecture parameters.
+
     Args:
         path: Path to the ``.pt`` state-dict file. Defaults to
               ``config.BERT_MODEL_PATH``.
-        num_labels: Number of output classes (must match the saved model).
-        model_name: HuggingFace model identifier.
+        num_labels: Number of output classes. Overridden by the saved config
+                    when the companion ``.json`` file exists. Defaults to ``3``
+                    (negative / positive / neutral).
+        model_name: HuggingFace model identifier. Overridden by the saved config
+                    when the companion ``.json`` file exists.
 
     Returns:
         Tuple ``(model, tokenizer)`` ready for inference.
@@ -450,11 +464,22 @@ def load_bert_model(
         >>> model, tokenizer = load_bert_model()
     """
     _check_torch()
+    import json as _json
+
     model_path = Path(path) if path else BERT_MODEL_PATH
     if not model_path.exists():
         raise FileNotFoundError(
             f"BERT model not found at {model_path}. Run train_bert() first."
         )
+
+    # Read companion config if present (written by train_bert)
+    cfg_path = model_path.with_suffix(".json")
+    if cfg_path.exists():
+        with open(cfg_path, encoding="utf-8") as fh:
+            saved_cfg = _json.load(fh)
+        num_labels = saved_cfg.get("num_labels", num_labels)
+        model_name = saved_cfg.get("model_name", model_name)
+        logger.info("Loaded model config: num_labels=%d, model=%s", num_labels, model_name)
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     tokenizer = AutoTokenizer.from_pretrained(model_name)

@@ -277,11 +277,12 @@ elif page == "🤖 Live Demo":
                     if model is None:
                         st.error(
                             "BERT model not found. "
-                            "Train it first with `python src/bert_model.py`."
+                            "Train it first with: `python scripts/train_full.py --model bert`"
                         )
                         st.stop()
                     from src.bert_model import predict_bert
-                    labels, confidences = predict_bert(model, tokenizer, cleaned)
+                    labels, probs = predict_bert(model, tokenizer, cleaned)
+                    confidences = probs.max(axis=1)
 
             except Exception as exc:
                 st.error(f"Prediction failed: {exc}")
@@ -426,8 +427,8 @@ elif page == "📈 Model Comparison":
         )
     else:
         st.info(
-            "指标数据尚未生成。请先运行训练脚本：\n"
-            "```bash\npython src/baseline_model.py\npython src/bert_model.py\n```"
+            "No metrics available yet — train both models first:\n"
+            "```bash\npython scripts/train_full.py\n```"
         )
         st.dataframe(comparison_df.fillna("—"), use_container_width=True)
 

@@ -115,7 +115,6 @@ def run_baseline(train_df, val_df, test_df) -> dict:
 
 def run_bert(train_df, val_df, test_df) -> dict:
     import torch
-    import numpy as np
     from src.bert_model import train_bert, predict_bert
     from src.evaluate import evaluate_model, plot_confusion_matrix, plot_roc_curve
 
@@ -132,20 +131,8 @@ def run_bert(train_df, val_df, test_df) -> dict:
     model, tokenizer = train_bert(train_df, val_df)
     logger.info("Training took %.1f min", (time.time() - t0) / 60)
 
-    labels, confidences = predict_bert(model, tokenizer, test_df["clean_text"].tolist())
+    labels, probs_matrix = predict_bert(model, tokenizer, test_df["clean_text"].tolist())
     y_true = test_df["label"].values
-    num_classes = len(set(y_true))
-
-    # For evaluate_model we need a (n, num_classes) probability matrix
-    # predict_bert returns confidence for the predicted class only
-    # Build a proxy matrix: predicted class gets confidence, others share the rest
-    probs_matrix = np.zeros((len(labels), num_classes))
-    for i, (lbl, conf) in enumerate(zip(labels, confidences)):
-        probs_matrix[i, lbl] = conf
-        remainder = (1.0 - conf) / max(num_classes - 1, 1)
-        for c in range(num_classes):
-            if c != lbl:
-                probs_matrix[i, c] = remainder
 
     results = evaluate_model(y_true, labels, "BERT Fine-tuned", y_scores=probs_matrix)
     plot_confusion_matrix(y_true, labels, "BERT Fine-tuned")

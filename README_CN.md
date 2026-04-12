@@ -9,7 +9,7 @@
 ![scikit-learn](https://img.shields.io/badge/scikit--learn-1.3+-F7931E?logo=scikit-learn&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-22c55e)
 
-> 一个端到端的 NLP 情感分析平台。从原始社交媒体文本出发，经过数据清洗与预处理，训练两种互补模型——快速的 TF-IDF + 逻辑回归基线模型与经过微调的 **BERT**（`bert-base-uncased`）——并通过交互式四页 **Streamlit** Web 演示提供预测服务。默认使用 Sentiment140 Twitter 数据集，在数据文件缺失时自动生成 500 条模拟数据用于离线开发。
+> 一个端到端的 NLP 情感分析平台。从原始社交媒体文本出发，经过数据清洗与预处理，训练两种互补模型——快速的 TF-IDF + 逻辑回归基线模型与经过微调的 **BERT**（`bert-base-uncased`）——并通过交互式四页 **Streamlit** Web 演示和 **FastAPI** REST 接口提供预测服务。使用 **TweetEval** 基准数据集（59,899 条真实推文，三分类情感），并在数据文件缺失时自动生成模拟数据用于离线开发。
 
 ![Streamlit Demo](reports/figures/screenshot_home.png)
 
@@ -40,14 +40,14 @@
 
 | # | 功能 | 说明 |
 |---|------|------|
-| 1 | **双模型流水线** | TF-IDF + 逻辑回归（CPU 秒级训练）与 BERT 微调（生产级语义表示） |
-| 2 | **自动数据回退** | `load_data()` 优先使用 Sentiment140 CSV；文件缺失时自动生成 500 条均衡模拟数据 |
-| 3 | **可复现实验** | `set_seed(42)` 在 `config.py` 中全局固定 `random`、`numpy`、`torch` 随机种子 |
-| 4 | **分层数据划分** | `split_data()` 执行分层 train / val / test 划分（默认 70% / 10% / 20%） |
-| 5 | **丰富交互图表** | Plotly 饼图、直方图、折线图、柱状图；Matplotlib 词云；Seaborn 热力图 |
-| 6 | **四页 Web 演示** | 首页 · 数据分析 · 实时预测（单条 + 批量 + CSV 下载）· 模型对比 |
-| 7 | **Google 风格文档** | 每个公共函数均包含 `Args`、`Returns`、`Raises` 和 `Example` 文档块 |
-| 8 | **GPU / CPU 可移植** | BERT 自动检测 CUDA；提供 `cpuonly` conda 环境支持纯 CPU 机器 |
+| 1 | **双模型流水线** | TF-IDF + 逻辑回归（CPU 秒级训练）与 BERT 微调（RTX 5060 约 90 分钟） |
+| 2 | **TweetEval 基准数据** | 59,899 条真实推文，三分类标签；`download_data.py` 自动从 HuggingFace 下载 |
+| 3 | **FastAPI REST 接口** | `api/serve.py` — `/predict`、`/predict/batch`、`/health`；Pydantic 校验；uvicorn 就绪 |
+| 4 | **SHAP 可解释性** | `src/explain.py` — 基线模型 SHAP `LinearExplainer`；Streamlit 内 token 级归因展示 |
+| 5 | **超参数调优** | `scripts/tune_baseline.py` — 3 折 GridSearchCV 覆盖 TF-IDF 与 LR 参数，附热力图 |
+| 6 | **错误分析 Notebook** | `04_error_analysis.ipynb` — 高置信错误、否定词影响、类别难度、错误 SHAP 分析 |
+| 7 | **可复现实验** | `set_seed(42)` 在 `config.py` 中全局固定 `random`、`numpy`、`torch` 随机种子 |
+| 8 | **完整工程栈** | 121 个 pytest 测试 · GitHub Actions CI · Docker · Streamlit Cloud · Google 文档风格 |
 
 ---
 
@@ -323,20 +323,32 @@ jupyter lab
 
 ## 模型性能
 
-在分层划分的测试集上的评估结果（占总数据 20%，`RANDOM_SEED=42`）。
+在 **TweetEval 测试集**上的评估结果（12,264 条样本，`RANDOM_SEED=42`）。
+三分类：0 = 负面 · 1 = 正面 · 2 = 中性。
 
-| 指标 | 基线（TF-IDF + LR） | BERT（bert-base-uncased）† |
-|------|---------------------|---------------------------|
-| 准确率 (Accuracy) | 0.8841 | 0.4058 |
-| 精确率 (Precision, weighted) | 0.9014 | 0.3190 |
-| 召回率 (Recall, weighted) | 0.8841 | 0.4058 |
-| F1 分数 (weighted) | 0.8824 | 0.2844 |
-| ROC-AUC | 0.9717 | — |
+| 指标 | 基线（TF-IDF + LR） | BERT（bert-base-uncased） |
+|------|---------------------|--------------------------|
+| 准确率 (Accuracy) | **0.5935** | 训练中 |
+| 精确率 (Precision, weighted) | **0.6096** | — |
+| 召回率 (Recall, weighted) | **0.5935** | — |
+| F1 分数 (weighted) | **0.5788** | — |
+| ROC-AUC（宏平均 OvR） | **0.7724** | — |
 
-> † BERT 结果来自**快速演示运行**：仅训练 1 个 epoch，纯 CPU，240 条训练样本（自动生成的模拟数据）。
-> 在 Sentiment140（约 160 万条推文）上使用 GPU 完整微调后，BERT 预期将显著优于基线模型。
-> 评估使用 `src/evaluate.evaluate_model()` 完成。
-> 混淆矩阵自动保存至 `reports/figures/`。
+> 数据集：来自 HuggingFace 的 `tweet_eval/sentiment`（45,615 训练 / 2,000 验证 / 12,284 测试）。
+> BERT 结果将在完整微调（3 个 epoch，GPU，约 90 分钟）完成后填入。
+> 所有指标由 `src/evaluate.evaluate_model()` 计算；支持 OvR 多类别 ROC 曲线。
+
+**基线模型各类别表现：**
+
+| 类别 | 精确率 | 召回率 | F1 | 样本数 |
+|------|--------|--------|-----|-------|
+| 负面 (0) | 0.68 | 0.35 | 0.46 | 3,968 |
+| 正面 (1) | 0.53 | 0.62 | 0.57 | 2,371 |
+| 中性 (2) | 0.59 | 0.75 | 0.66 | 5,925 |
+
+> **负面类召回率最低（0.35）**——最常见错误是负面样本被预测为中性。
+> 这是词袋模型在处理否定词文本时的已知局限。
+> 详细的失败模式分析请参见 `notebooks/04_error_analysis.ipynb`。
 
 ---
 
@@ -344,9 +356,10 @@ jupyter lab
 
 | Notebook | 内容描述 | 主要输出 |
 |----------|---------|---------|
-| `01_eda.ipynb` | 数据加载、缺失值分析、类别分布、文本长度统计、高频词分析、TF-IDF 关键词、时间趋势、数据划分摘要 | Plotly 交互图表 · `reports/figures/wordcloud_*.png` |
+| `01_eda.ipynb` | 数据加载、缺失值分析、类别分布、文本长度统计、高频词分析、TF-IDF 关键词、时间趋势 | Plotly 交互图表 · `reports/figures/wordcloud_*.png` |
 | `02_baseline_model.ipynb` | 训练 TF-IDF + LR 流水线、测试集评估、LR 系数特征重要性、混淆矩阵、ROC 曲线 | `models/baseline_tfidf_lr.pkl` · ROC 曲线 PNG |
-| `03_bert_finetune.ipynb` | BERT 微调、逐 epoch 训练曲线、测试集评估、与基线对比、误差分析 | `models/bert_sentiment.pt` · 模型对比图 |
+| `03_bert_finetune.ipynb` | BERT 微调、逐 epoch 训练曲线、测试集评估、与基线对比 | `models/bert_sentiment.pt` · 模型对比图 |
+| `04_error_analysis.ipynb` | 高置信度错误分析、否定词影响、类别难度、错误 SHAP 分析、双模型分歧 | `reports/figures/error_*.png` · 洞察摘要 |
 
 ---
 
@@ -468,14 +481,17 @@ jupyter lab
 
 ## 未来计划
 
+- [x] **模型可解释性** — 基线模型 SHAP `LinearExplainer`（`src/explain.py`）
+- [x] **Docker 部署** — `python:3.10-slim` 镜像，端口 8501，健康检查
+- [x] **CI/CD 流水线** — GitHub Actions：flake8 代码检查 + 121 个 pytest 测试
+- [x] **FastAPI REST 接口** — `/predict`、`/predict/batch`、`/health`（`api/serve.py`）
+- [x] **超参数调优** — 3 折 GridSearchCV 附热力图（`scripts/tune_baseline.py`）
+- [x] **错误分析** — 高置信度错误、否定词模式、类别难度（`04_error_analysis.ipynb`）
+- [ ] **量化推理** — 基于 ONNX 的 INT8 BERT CPU 加速（速度提升 3–4 倍）
 - [ ] **多类别细粒度情感** — 5 类标签（极消极 → 极积极）
 - [ ] **实时数据接入** — Twitter / Reddit API 数据流管道
 - [ ] **基于方面的情感分析（ABSA）** — 实体级别的观点挖掘
-- [x] **模型可解释性** — 基线模型 SHAP token 级归因（`src/explain.py`）
-- [ ] **量化推理** — INT8 BERT CPU 推理加速（速度提升 3–4 倍）
-- [ ] **Docker 部署** — 一键容器化演示环境
-- [ ] **CI/CD 流水线** — GitHub Actions：代码检查 + 单元测试 + 构建验证
-- [ ] **单元测试** — 使用 `pytest` 覆盖所有 `src/` 模块
+- [ ] **MLflow 实验追踪** — 记录每次训练的参数、指标与模型文件
 
 ---
 

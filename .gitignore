@@ -59,13 +59,20 @@ credentials.json
 htmlcov/
 .pytest_cache/
 
-# ── Generated training metrics (populated at runtime by training scripts) ─────
+# ── Generated training metrics and analysis artefacts ────────────────────────
 reports/metrics.json
+reports/tuning_results.json
+reports/error_analysis_test.csv
+models/*.json
 
 # ── One-off / temporary scripts (not part of the public API) ─────────────────
 run_training.py
 take_screenshots.py
 
+# ── Runtime logs ─────────────────────────────────────────────────────────────
+logs/
+
 # ── Local Claude Code config (never upload to GitHub) ────────────────────────
 CLAUDE.md
 HANDOFF.md
+INTERVIEW_GUIDE.md
